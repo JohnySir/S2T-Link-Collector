@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en" class="light"> <!-- Added 'light' class as default, managed by JS -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cozy Link Collector</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font import */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        /* Apply smooth scrolling and Inter font globally */
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.5s ease;
+        }
+
+        /* Keyframe animation for the subtle background glow (Light Mode) */
+        @keyframes cozy-glow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* LIGHT MODE Background (Default) */
+        .cozy-background {
+            background: linear-gradient(-45deg, #fce0e8, #e0fcf2, #e0e8fc, #fcfbe0);
+            background-size: 400% 400%;
+            animation: cozy-glow 20s ease infinite;
+        }
+
+        /* DARK MODE Background Override */
+        /* Applied when the 'dark' class is present on the HTML tag */
+        html.dark .cozy-background {
+            /* Deep, calming dark background: slate-800 */
+            background: #1e293b; 
+            background-size: auto;
+            animation: none; /* Disable glow animation in dark mode for calm */
+        }
+        
+        /* Hide default file input (still needed but good practice) */
+        #fileInput {
+            display: none;
+        }
+
+        /* Added CSS for the main content card transition (optional but nice) */
+        #container {
+            transition: background-color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease, transform 0.3s;
+        }
+
+        /* --- Theme Transition Animation CSS --- */
+        .clip-circle {
+            /* This property will be dynamically set by JavaScript */
+            clip-path: circle(0% at var(--clip-x) var(--clip-y));
+            pointer-events: none; /* Ignore pointer events */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #1e293b; /* Dark mode background */
+            z-index: 9999;
+            transition: clip-path 0.7s ease-out; /* Smooth expansion */
+        }
+        
+        /* The clip is set to the TARGET theme color by checking the current HTML class */
+        html.light .clip-circle {
+             background: #1e293b; /* If HTML is light, next is dark, so overlay is dark */
+        }
+        
+        html.dark .clip-circle {
+            background: #fcfbe0; /* If HTML is dark, next is light, so overlay is light */
+        }
+    </style>
+</head>
+<body class="cozy-background min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Theme Toggle Button -->
+    <div class="w-full max-w-lg flex justify-end mb-4">
+        <button id="themeToggle" class="p-3 rounded-full text-gray-500 bg-white/50 backdrop-blur-sm shadow-md transition-all duration-300 hover:scale-110 hover:shadow-lg dark:text-yellow-300 dark:bg-slate-700 dark:hover:bg-slate-600">
+            <!-- Icon is set by JS based on current theme -->
+            <svg id="toggleIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            </svg>
+        </button>
+    </div>
+
+    <!-- Main Card Container -->
+    <div id="container" class="w-full max-w-lg bg-white bg-opacity-90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl transition-all duration-500 hover:shadow-3xl transform hover:scale-[1.01] border border-gray-100
+        dark:bg-slate-800 dark:bg-opacity-90 dark:border-slate-700 dark:shadow-slate-900/50">
+
+        <!-- Header -->
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-2 dark:text-gray-100">The Cozy Drop</h1>
+        <p class="text-sm text-gray-500 mb-6 dark:text-gray-400">Drop em and Save em</p>
+
+        <!-- Drop Zone -->
+        <div id="dropZone" class="drop-zone w-full h-48 flex flex-col items-center justify-center p-6 border-4 border-dashed border-pink-300 rounded-xl transition-all duration-300 cursor-pointer bg-pink-50 hover:bg-pink-100/70 text-gray-500 font-medium
+            dark:border-fuchsia-600 dark:bg-slate-700 dark:text-gray-300 dark:hover:bg-slate-600">
+            <!-- Icon -->
+            <svg id="dropIcon" class="w-10 h-10 mb-2 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            <span id="dropText">Drag & Drop Links Here</span>
+        </div>
+
+        <!-- Link List Container (for visualization) -->
+        <div id="linkListContainer" class="mt-4 max-h-40 overflow-y-auto pr-2">
+            <ul id="linkList" class="space-y-2">
+                <!-- Links will be added here -->
+            </ul>
+        </div>
+
+        <!-- Counter and Actions -->
+        <div class="flex flex-col sm:flex-row justify-between items-center mt-6 space-y-4 sm:space-y-0">
+            <div class="counter font-semibold text-gray-600 text-sm sm:text-base dark:text-gray-300" id="linkCounter">Links collected: 0</div>
+            
+            <button id="saveBtn" disabled class="save-btn px-6 py-2 bg-pink-500 text-white font-bold rounded-full shadow-lg shadow-pink-300/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none
+                dark:bg-fuchsia-600 dark:shadow-fuchsia-900/50 dark:hover:bg-fuchsia-500">
+                Save Links (.txt)
+            </button>
+        </div>
+
+        <!-- Message Box (for feedback instead of alert) -->
+        <div id="messageBox" class="hidden mt-4 p-3 rounded-lg text-sm transition-opacity duration-300 opacity-0"></div>
+
+    </div>
+
+    <!-- Footer Watermark -->
+    <footer class="mt-8 text-center text-gray-500/70 text-sm dark:text-gray-400/70">
+        <div class="flex items-center justify-center space-x-3">
+            <p>&copy; 2025 Crafted with Coziness by ~ Johny ~</p>
+            <!-- GitHub Icon Link -->
+            <a href="https://github.com/JohnySir" target="_blank" aria-label="Johny's GitHub profile" class="text-pink-400 hover:text-pink-600 transition-colors duration-300 transform hover:scale-110
+                dark:text-fuchsia-400 dark:hover:text-fuchsia-500">
+                <!-- GitHub SVG Icon -->
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.417 2.865 8.164 6.83 9.498.5.093.682-.217.682-.483 0-.237-.008-.888-.015-1.745-2.787.604-3.37-.269-3.37-.269-.454-1.156-1.11-1.46-1.11-1.46-.908-.62.069-.608.069-.608 1.004.072 1.531 1.033 1.531 1.033.89 1.528 2.341 1.089 2.91.83.091-.645.349-1.089.635-1.343-2.22-.253-4.555-1.11-4.555-4.945 0-1.09.39-1.984 1.03-2.675-.103-.253-.447-1.266.098-2.651 0 0 .84-.27 2.75 1.026A9.559 9.559 0 0112 5.092c.844.007 1.688.11 2.502.327 1.903-1.296 2.744-1.026 2.744-1.026.546 1.385.202 2.398.099 2.651.64.691 1.029 1.585 1.029 2.675 0 3.843-2.338 4.686-4.563 4.936.359.309.678.92.678 1.865 0 1.343-.012 2.428-.012 2.756 0 .267.18.579.688.481C20.148 20.165 23 16.417 23 12.017 23 6.484 18.522 2 13 2h-1z" clip-rule="evenodd"/>
+                </svg>
+            </a>
+        </div>
+    </footer>
+    
+    <!-- Theme Transition Overlay -->
+    <div id="themeTransitionOverlay" class="clip-circle"></div>
+
+    <script>
+        // Set up constants and state variables
+        const htmlElement = document.documentElement; // Target the html tag for Tailwind dark mode
+        const themeToggle = document.getElementById('themeToggle');
+        const toggleIcon = document.getElementById('toggleIcon');
+        const overlay = document.getElementById('themeTransitionOverlay');
+        
+        const dropZone = document.getElementById('dropZone');
+        const dropText = document.getElementById('dropText');
+        const dropIcon = document.getElementById('dropIcon');
+        const linkCounter = document.getElementById('linkCounter');
+        const saveBtn = document.getElementById('saveBtn');
+        const linkList = document.getElementById('linkList');
+        const messageBox = document.getElementById('messageBox');
+        let links = [];
+
+        // --- Theme Management Functions ---
+
+        /**
+         * Sets the appropriate icon for the theme toggle button.
+         * @param {string} theme - 'dark' or 'light'.
+         */
+        function setToggleIcon(theme) {
+            if (theme === 'dark') {
+                // Moon icon (for dark mode)
+                toggleIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 10.003 10.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />`;
+            } else {
+                // Sun icon (for light/cozy mode)
+                toggleIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />`;
+            }
+        }
+
+        /**
+         * Toggles the theme between 'light' and 'dark' with a circular reveal animation.
+         * @param {Event} event - The click event object.
+         */
+        function toggleTheme(event) {
+            const currentTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            // 1. Get click position for the circular reveal center
+            const x = event.clientX;
+            const y = event.clientY;
+            
+            // 2. Set the initial clip path position and reset it to 0%
+            overlay.style.setProperty('--clip-x', `${x}px`);
+            overlay.style.setProperty('--clip-y', `${y}px`);
+            overlay.style.clipPath = 'circle(0% at var(--clip-x) var(--clip-y))';
+            
+            // 3. Make the overlay visible and trigger the animation
+            overlay.style.pointerEvents = 'auto';
+            
+            // Forced reflow to ensure CSS sees the 0% clip-path before starting the transition
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    // Calculate the max radius needed to cover the entire viewport from the click point
+                    const maxRadius = Math.hypot(
+                        Math.max(x, window.innerWidth - x),
+                        Math.max(y, window.innerHeight - y)
+                    );
+                    
+                    // Set the clip path to the full radius
+                    overlay.style.clipPath = `circle(${maxRadius * 1.1}px at var(--clip-x) var(--clip-y))`;
+                });
+            });
+
+            // 4. After the animation starts (0.7s), switch the actual theme and hide the overlay
+            setTimeout(() => {
+                // A. Update HTML class (this is the actual theme change)
+                if (newTheme === 'dark') {
+                    htmlElement.classList.add('dark');
+                    htmlElement.classList.remove('light');
+                } else {
+                    htmlElement.classList.add('light');
+                    htmlElement.classList.remove('dark');
+                }
+
+                // B. Save preference and update icon
+                localStorage.setItem('theme', newTheme);
+                setToggleIcon(newTheme);
+
+                // C. Hide the overlay
+                overlay.style.clipPath = 'circle(0% at var(--clip-x) var(--clip-y))';
+                overlay.style.pointerEvents = 'none';
+
+            }, 700); // Wait for the transition duration (0.7s)
+
+            // The overlay color is now handled purely by the CSS selectors based on the current HTML class.
+            // No class manipulation on the 'overlay' element is needed here.
+        }
+
+        /**
+         * Applies the saved or system preference theme on load.
+         */
+        function applyInitialTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            let initialTheme = 'light'; // Default to light/cozy mode
+
+            if (savedTheme) {
+                initialTheme = savedTheme;
+            } else if (prefersDark) {
+                // Use system preference if no saved theme exists
+                initialTheme = 'dark';
+            }
+
+            // --- CRITICAL FIX: Ensure the clip-path variables are set on load ---
+            // Set variables to a neutral position (center) to ensure the CSS clip-path property is valid,
+            // which keeps the overlay hidden on initial load.
+            overlay.style.setProperty('--clip-x', `50vw`);
+            overlay.style.setProperty('--clip-y', `50vh`);
+
+
+            // 1. Set the primary HTML theme class
+            if (initialTheme === 'dark') {
+                htmlElement.classList.add('dark');
+                htmlElement.classList.remove('light');
+            } else {
+                htmlElement.classList.add('light');
+                htmlElement.classList.remove('dark');
+            }
+
+            // 2. Set the toggle icon
+            setToggleIcon(initialTheme);
+            
+            // 3. No class manipulation needed on the overlay itself.
+        }
+        
+        // --- Core Logic Functions (Unchanged) ---
+
+        /**
+         * Checks if a string is a valid URL.
+         * @param {string} string - The string to validate.
+         * @returns {boolean}
+         */
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        /**
+         * Displays a temporary message box for user feedback.
+         * @param {string} message - The message text.
+         * @param {string} type - 'success' or 'error'.
+         */
+        function showMessage(message, type) {
+            // Updated classes for better visibility in dark mode context
+            const classes = {
+                success: 'bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-200',
+                error: 'bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-200',
+                info: 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-200'
+            };
+
+            messageBox.textContent = message;
+            messageBox.className = `mt-4 p-3 rounded-lg text-sm transition-opacity duration-300 ${classes[type]} opacity-100`;
+            messageBox.classList.remove('hidden');
+
+            setTimeout(() => {
+                messageBox.classList.add('opacity-0');
+                setTimeout(() => {
+                    messageBox.classList.add('hidden');
+                }, 300);
+            }, 3000);
+        }
+
+        /**
+         * Renders the list of collected links and updates the counter.
+         */
+        function updateUI() {
+            linkCounter.textContent = `Links collected: ${links.length}`;
+            saveBtn.disabled = links.length === 0;
+            
+            linkList.innerHTML = ''; // Clear existing list
+
+            links.forEach((link, index) => {
+                const li = document.createElement('li');
+                // Added dark mode classes for link items
+                li.className = 'flex items-center justify-between p-2 bg-white rounded-lg shadow-sm text-gray-700 text-xs font-mono truncate transition-all duration-200 hover:shadow-md dark:bg-slate-700 dark:text-gray-200 dark:shadow-none';
+                li.title = link;
+                
+                // Link text
+                const linkText = document.createElement('span');
+                linkText.textContent = link;
+                linkText.className = 'truncate max-w-[85%]';
+                
+                // Delete button (X icon)
+                const deleteButton = document.createElement('button');
+                // Updated delete button colors for dark mode
+                deleteButton.innerHTML = `<svg class="w-4 h-4 text-pink-500 hover:text-pink-700 transition-colors dark:text-fuchsia-400 dark:hover:text-fuchsia-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                deleteButton.title = 'Remove link';
+                deleteButton.onclick = () => removeLink(index);
+
+                li.appendChild(linkText);
+                li.appendChild(deleteButton);
+                linkList.appendChild(li);
+            });
+        }
+
+        /**
+         * Removes a link by index.
+         * @param {number} index - The index of the link to remove.
+         */
+        function removeLink(index) {
+            links.splice(index, 1);
+            updateUI();
+            showMessage(`Link removed!`, 'info');
+        }
+
+        // --- Event Handlers (Unchanged) ---
+
+        // 1. Drag Over
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            // Tailwind's dark: variants handle the color change, just need the dynamic classes for the effect
+            dropZone.classList.add('border-pink-500', 'ring-4', 'ring-pink-200/50', 'bg-pink-100');
+            dropIcon.classList.add('animate-bounce');
+            dropText.textContent = 'Drop it!';
+        });
+
+        // 2. Drag Leave
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-pink-500', 'ring-4', 'ring-pink-200/50', 'bg-pink-100');
+            dropIcon.classList.remove('animate-bounce');
+            dropText.textContent = 'Drag & Drop Links Here';
+        });
+
+        // 3. Handle Drop
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-pink-500', 'ring-4', 'ring-pink-200/50', 'bg-pink-100');
+            dropIcon.classList.remove('animate-bounce');
+            dropText.textContent = 'Drag & Drop Links Here';
+
+            const droppedData = e.dataTransfer.getData('text/plain');
+            
+            if (droppedData) {
+                const droppedItems = droppedData.split('\n').filter(item => item.trim() !== '');
+
+                let newLinksAdded = 0;
+                droppedItems.forEach(item => {
+                    const trimmedItem = item.trim();
+                    if (isValidUrl(trimmedItem) && !links.includes(trimmedItem)) {
+                        links.push(trimmedItem);
+                        newLinksAdded++;
+                    } else if (links.includes(trimmedItem)) {
+                        showMessage(`Link already collected: ${trimmedItem.substring(0, 30)}...`, 'error');
+                    }
+                });
+                
+                if (newLinksAdded > 0) {
+                    updateUI();
+                    showMessage(`${newLinksAdded} link(s) added successfully!`, 'success');
+                } else if (newLinksAdded === 0 && droppedItems.length > 0) {
+                    showMessage('No valid or new links were found in the dropped content.', 'error');
+                }
+            } else {
+                showMessage('No text data found in the drop.', 'error');
+            }
+        });
+
+        // 4. Save Button Click
+        saveBtn.addEventListener('click', () => {
+            if (links.length > 0) {
+                const characterLimit = 3090; 
+                const limitedLinks = links.map(link => link.slice(0, characterLimit));
+                
+                const blob = new Blob([limitedLinks.join('\n')], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'cozy_links_output.txt'; 
+                
+                setTimeout(() => {
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+
+                    const savedCount = links.length;
+                    links = [];
+                    updateUI();
+                    showMessage(`Successfully saved ${savedCount} link(s) to 'cozy_links_output.txt'`, 'success');
+                }, 50); 
+            }
+        });
+        
+        // --- Initial Setup and Listeners ---
+        
+        // Attach theme toggle listener, passing the event to the new function
+        themeToggle.addEventListener('click', toggleTheme);
+
+        // Initial UI and Theme setup
+        document.addEventListener('DOMContentLoaded', () => {
+            applyInitialTheme(); // Apply saved or system theme
+            updateUI(); // Render links and counter
+        });
+
+    </script>
+</body>
+</html>
