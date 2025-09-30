@@ -31,9 +31,6 @@ The application runs entirely locally—no server or build process required.
 3. **Manage:** Use the **'X'** button next to any link in the list to remove it.  
 4. **Save:** Click the **"Save Links (.txt)"** button to export your clean list of URLs.
 
-## **🌟 Contributing**
-
-If you have ideas for more cozy features, improvements, or bug fixes, feel free to open an issue or submit a pull request\!
 
 ## **📜 Credit**
 
